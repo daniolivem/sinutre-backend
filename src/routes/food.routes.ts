@@ -6,16 +6,25 @@ export const foodRouter = Router();
 
 
 foodRouter.get('/', requireAuth, async (req, res) => {
+  const search = String(req.query.search ?? '');
+
   const foods = await prisma.food.findMany({
     where: {
       userId: req.userId,
+
+      name: {
+        contains: search,
+      },
     },
+
+    take: 10,
+
     orderBy: {
       name: 'asc',
     },
   });
 
-  return res.json(foods);
+  res.json(foods);
 });
 
 
