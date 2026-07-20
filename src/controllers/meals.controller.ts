@@ -26,25 +26,11 @@ export async function meals(
   const result = meals.map((meal) => {
     const totals = meal.foods.reduce(
       (acc, item) => {
-        const factor = item.foodG / 100;
-
         acc.grams += item.foodG;
-
-        acc.calories +=
-          item.food.caloriesPer100g *
-          factor;
-
-        acc.carbs +=
-          item.food.carbsPer100g *
-          factor;
-
-        acc.proteins +=
-          item.food.proteinPer100g *
-          factor;
-
-        acc.fats +=
-          item.food.fatPer100g *
-          factor;
+        acc.calories += item.calories;
+        acc.carbs += item.carbs;
+        acc.proteins += item.protein;
+        acc.fats += item.fat;
 
         return acc;
       },
@@ -168,4 +154,3 @@ export async function createMeal(
 
   return res.status(201).json(meal);
 }
-
