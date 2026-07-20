@@ -68,3 +68,21 @@ export async function saveProfile(req: Request, res: Response) {
 
   return res.json(serializeProfile(healthData, weightLog));
 }
+
+export async function weightHistory(req: Request, res: Response) {
+  const logs = await prisma.weightLog.findMany({
+    where: { userId: req.userId! },
+    orderBy: { createdAt: 'asc' },
+    select: { weight: true, height: true, createdAt: true },
+  });
+
+  return res.json(logs.map((log) => {
+    const bmi = log.weight / (log.height ** 2);
+    return {
+      date: log.createdAt,
+      weight: log.weight,
+      height: log.height,
+      bmi: Number(bmi.toFixed(2)),
+    };
+  }));
+}
