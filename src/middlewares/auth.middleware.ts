@@ -12,6 +12,12 @@ declare global {
 
 // Lê o JWT do header Authorization: Bearer <token> e injeta req.userId.
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!env.jwtSecret) {
+    return res.status(500).json({
+      error: 'JWT_SECRET não configurado no servidor.',
+    });
+  }
+
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Token ausente.' });

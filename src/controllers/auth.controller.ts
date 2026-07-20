@@ -7,15 +7,42 @@ const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
 
+function ensureGithubConfig() {
+  const { clientId, clientSecret, callbackUrl } = env.github;
+
+  if (!clientId || !clientSecret || !callbackUrl) {
+    throw new Error('Configuração OAuth do GitHub ausente.');
+  }
+
+  return { clientId, clientSecret, callbackUrl };
+}
+
+function ensureJwtSecret() {
+  if (!env.jwtSecret) {
+    throw new Error('JWT_SECRET não configurado no servidor.');
+  }
+
+  return env.jwtSecret;
+}
+
 // GET /auth/github
 // Redireciona o navegador para a tela de autorização do GitHub.
 export async function redirectToGithub(_req: Request, res: Response) {
-  const params = new URLSearchParams({
-    client_id: env.github.clientId,
-    redirect_uri: env.github.callbackUrl,
-    scope: 'read:user',
-  });
-  res.redirect(`${GITHUB_AUTHORIZE_URL}?${params.toString()}`);
+  try {
+    const githubConfig = ensureGithubConfig();
+
+    const params = new URLSearchParams({
+      client_id: githubConfig.clientId,
+      redirect_uri: githubConfig.callbackUrl,
+      scope: 'read:user',
+    });
+
+    res.redirect(`${GITHUB_AUTHORIZE_URL}?${params.toString()}`);
+  } catch {
+    return res.status(500).json({
+      error: 'GitHub OAuth não está configurado no servidor.',
+    });
+  }
 }
 
 // GET /auth/github/callback?code=...
@@ -29,6 +56,16 @@ export async function githubCallback(req: Request, res: Response) {
     return res.status(400).json({ error: 'Parâmetro "code" ausente.' });
   }
 
+  let githubConfig;
+
+  try {
+    githubConfig = ensureGithubConfig();
+  } catch {
+    return res.status(500).json({
+      error: 'GitHub OAuth não está configurado no servidor.',
+    });
+  }
+
   const tokenResponse = await fetch(GITHUB_TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -36,10 +73,10 @@ export async function githubCallback(req: Request, res: Response) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      client_id: env.github.clientId,
-      client_secret: env.github.clientSecret,
+      client_id: githubConfig.clientId,
+      client_secret: githubConfig.clientSecret,
       code,
-      redirect_uri: env.github.callbackUrl,
+      redirect_uri: githubConfig.callbackUrl,
     }),
   });
 
@@ -84,7 +121,8 @@ export async function githubCallback(req: Request, res: Response) {
     },
   });
 
-  const token = jwt.sign({ sub: user.id }, env.jwtSecret, { expiresIn: '7d' });
+  const jwtSecret = ensureJwtSecret();
+  const token = jwt.sign({ sub: user.id }, jwtSecret, { expiresIn: '7d' });
 
   res.redirect(`${env.frontendUrl}/?token=${token}`);
 }
